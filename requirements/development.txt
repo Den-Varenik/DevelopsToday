@@ -1,0 +1,4 @@
+-r base.txt
+black==21.9b0
+pyright==0.0.10
+flake8==4.0.1
