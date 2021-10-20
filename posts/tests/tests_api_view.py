@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from posts.models import Post
+from rest_framework.authtoken.models import Token
 
 User = get_user_model()
 
@@ -19,12 +20,12 @@ class PostsTestCase(APITestCase):
         )
 
     def test_post_list(self):
-        self.client.login(username="example", password="Password@123")
         self._request_department(
             self.client.get, reverse("post-list"), status.HTTP_200_OK
         )
 
-        self.client.logout()
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
         self._request_department(
             self.client.get, reverse("post-list"), status.HTTP_200_OK
         )
@@ -32,78 +33,83 @@ class PostsTestCase(APITestCase):
     def test_post_create(self):
         data = {"title": "Created title", "link": "https://www.google.com/"}
 
-        self.client.login(username="example", password="Password@123")
+        self._request_department(
+            self.client.post,
+            reverse("post-list"),
+            status.HTTP_401_UNAUTHORIZED,
+            data=data,
+        )
+
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
         self._request_department(
             self.client.post, reverse("post-list"), status.HTTP_201_CREATED, data=data
         )
         self.assertEqual(Post.objects.all().count(), 2)
 
-        self.client.logout()
-        self._request_department(
-            self.client.post, reverse("post-list"), status.HTTP_403_FORBIDDEN, data=data
-        )
-
     def test_post_retrieve(self):
-        self.client.login(username="example", password="Password@123")
         self._request_department(
             self.client.get,
-            reverse("post-details", kwargs={"pk": self.post.pk}),
+            reverse("post-details", kwargs={"slug": self.post.slug}),
             status.HTTP_200_OK,
         )
 
-        self.client.logout()
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
         self._request_department(
             self.client.get,
-            reverse("post-details", kwargs={"pk": self.post.pk}),
+            reverse("post-details", kwargs={"slug": self.post.slug}),
             status.HTTP_200_OK,
         )
 
     def test_post_update(self):
         data = {"title": "Updated title", "link": "https://www.google.com/"}
 
-        self.client.login(username="example", password="Password@123")
         self._request_department(
             self.client.put,
-            reverse("post-details", kwargs={"pk": self.post.pk}),
+            reverse("post-details", kwargs={"slug": self.post.slug}),
+            status.HTTP_401_UNAUTHORIZED,
+            data=data,
+        )
+
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self._request_department(
+            self.client.put,
+            reverse("post-details", kwargs={"slug": self.post.slug}),
             status.HTTP_403_FORBIDDEN,
             data=data,
         )
 
-        self.client.logout()
+        token = Token.objects.get(user__username=self.author)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
         self._request_department(
             self.client.put,
-            reverse("post-details", kwargs={"pk": self.post.pk}),
-            status.HTTP_403_FORBIDDEN,
-            data=data,
-        )
-
-        self.client.login(username="author", password="Author@123")
-        self._request_department(
-            self.client.put,
-            reverse("post-details", kwargs={"pk": self.post.pk}),
+            reverse("post-details", kwargs={"slug": self.post.slug}),
             status.HTTP_200_OK,
             data=data,
         )
 
     def test_post_delete(self):
-        self.client.login(username="example", password="Password@123")
         self._request_department(
             self.client.delete,
-            reverse("post-details", kwargs={"pk": self.post.pk}),
+            reverse("post-details", kwargs={"slug": self.post.slug}),
+            status.HTTP_401_UNAUTHORIZED,
+        )
+
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self._request_department(
+            self.client.delete,
+            reverse("post-details", kwargs={"slug": self.post.slug}),
             status.HTTP_403_FORBIDDEN,
         )
 
-        self.client.logout()
+        token = Token.objects.get(user__username=self.author)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
         self._request_department(
             self.client.delete,
-            reverse("post-details", kwargs={"pk": self.post.pk}),
-            status.HTTP_403_FORBIDDEN,
-        )
-
-        self.client.login(username="author", password="Author@123")
-        self._request_department(
-            self.client.delete,
-            reverse("post-details", kwargs={"pk": self.post.pk}),
+            reverse("post-details", kwargs={"slug": self.post.slug}),
             status.HTTP_204_NO_CONTENT,
         )
 
