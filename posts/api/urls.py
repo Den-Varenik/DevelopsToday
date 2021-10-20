@@ -11,4 +11,10 @@ urlpatterns = [
         views.CommentDetailsView.as_view(),
         name="comment-details",
     ),
+    path("<str:slug>/upvote/", views.UpvoteListView.as_view(), name="upvote-list"),
+    path(
+        "<str:slug>/upvote/<int:pk>/",
+        views.UpvoteDetailsView.as_view(),
+        name="upvote-list",
+    ),
 ]
