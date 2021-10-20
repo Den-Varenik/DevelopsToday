@@ -15,6 +15,6 @@ urlpatterns = [
     path(
         "<str:slug>/upvote/<int:pk>/",
         views.UpvoteDetailsView.as_view(),
-        name="upvote-list",
+        name="upvote-details",
     ),
 ]

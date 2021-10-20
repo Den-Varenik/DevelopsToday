@@ -26,7 +26,7 @@ class PostSerializer(serializers.ModelSerializer):
 
 
 class UpvoteSerializer(serializers.ModelSerializer):
-    author = serializers.StringRelatedField(read_only=True)
+    user = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         model = Upvote

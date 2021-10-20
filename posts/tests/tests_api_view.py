@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from posts.models import Post, Comment
+from posts.models import Post, Comment, Upvote
 
 User = get_user_model()
 
@@ -259,6 +259,94 @@ class CommentTestCase(APITestCase):
             status.HTTP_204_NO_CONTENT,
         )
         self.assertEqual(Comment.objects.all().count(), 0)
+
+    def _request_department(self, method, path, status_code, data: dict = None) -> None:
+        response = method(path, data, format="json")
+        self.assertEqual(response.status_code, status_code)
+
+
+class UpvoteTestCase(APITestCase):
+    def setUp(self) -> None:
+        self.user = User.objects.create_user(
+            username="example", password="Password@123"
+        )
+        self.post = Post.objects.create(
+            author=self.user, title="Test title", link="https://www.google.com/"
+        )
+        self.upvote = Upvote.objects.create(user=self.user, post=self.post)
+
+    def test_upvote_list(self):
+        self._request_department(
+            self.client.get,
+            reverse("upvote-list", kwargs={"slug": self.post.slug}),
+            status.HTTP_401_UNAUTHORIZED,
+        )
+
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self._request_department(
+            self.client.get,
+            reverse("upvote-list", kwargs={"slug": self.post.slug}),
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    def test_upvote_create(self):
+        self._request_department(
+            self.client.post,
+            reverse("upvote-list", kwargs={"slug": self.post.slug}),
+            status.HTTP_401_UNAUTHORIZED,
+        )
+
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self._request_department(
+            self.client.post,
+            reverse("upvote-list", kwargs={"slug": self.post.slug}),
+            status.HTTP_201_CREATED,
+        )
+        self.assertEqual(self.post.upvote.count(), 2)
+
+    def test_upvote_retrieve(self):
+        self._request_department(
+            self.client.get,
+            reverse(
+                "upvote-details",
+                kwargs={"slug": self.post.slug, "pk": self.upvote.pk},
+            ),
+            status.HTTP_401_UNAUTHORIZED,
+        )
+
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self._request_department(
+            self.client.get,
+            reverse(
+                "upvote-details",
+                kwargs={"slug": self.post.slug, "pk": self.upvote.pk},
+            ),
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    def test_upvote_delete(self):
+        self._request_department(
+            self.client.delete,
+            reverse(
+                "upvote-details",
+                kwargs={"slug": self.post.slug, "pk": self.upvote.pk},
+            ),
+            status.HTTP_401_UNAUTHORIZED,
+        )
+
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self._request_department(
+            self.client.delete,
+            reverse(
+                "upvote-details",
+                kwargs={"slug": self.post.slug, "pk": self.upvote.pk},
+            ),
+            status.HTTP_204_NO_CONTENT,
+        )
 
     def _request_department(self, method, path, status_code, data: dict = None) -> None:
         response = method(path, data, format="json")
