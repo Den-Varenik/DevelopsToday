@@ -15,7 +15,6 @@ class Post(models.Model):
     title = models.CharField(_("Title"), max_length=100)
     slug = models.SlugField()
     link = models.URLField(_("Link"))
-    upvote = models.IntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
@@ -37,3 +36,12 @@ class Comment(models.Model):
     content = models.TextField(_("Comment"))
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+
+
+class Upvote(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+    )
+    post = models.ForeignKey(Post, related_name="upvote", on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now_add=True)
