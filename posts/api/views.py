@@ -27,12 +27,12 @@ class CommentListView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        post_pk = self.kwargs["pk"]
-        return Comment.objects.filter(post__pk=post_pk)
+        post_slug = self.kwargs["slug"]
+        return Comment.objects.filter(post__slug=post_slug)
 
     def perform_create(self, serializer):
-        post_pk = self.kwargs["pk"]
-        post = Post.objects.get(pk=post_pk)
+        post_slug = self.kwargs["slug"]
+        post = Post.objects.get(slug=post_slug)
         serializer.save(author=self.request.user, post=post)
 
 

@@ -1,10 +1,10 @@
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from posts.models import Post
-from rest_framework.authtoken.models import Token
+from posts.models import Post, Comment
 
 User = get_user_model()
 
@@ -112,6 +112,153 @@ class PostsTestCase(APITestCase):
             reverse("post-details", kwargs={"slug": self.post.slug}),
             status.HTTP_204_NO_CONTENT,
         )
+
+    def _request_department(self, method, path, status_code, data: dict = None) -> None:
+        response = method(path, data, format="json")
+        self.assertEqual(response.status_code, status_code)
+
+
+class CommentTestCase(APITestCase):
+    def setUp(self) -> None:
+        self.user = User.objects.create_user(
+            username="example", password="Password@123"
+        )
+        self.author = User.objects.create_user(username="author", password="Author@123")
+        self.post = Post.objects.create(
+            author=self.author, title="Test title", link="https://www.google.com/"
+        )
+        self.comment = Comment.objects.create(
+            author=self.author, post=self.post, content="Test comment"
+        )
+
+    def test_comment_list(self):
+        self._request_department(
+            self.client.get,
+            reverse("comment-list", kwargs={"slug": self.post.slug}),
+            status.HTTP_200_OK,
+        )
+
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self._request_department(
+            self.client.get,
+            reverse("comment-list", kwargs={"slug": self.post.slug}),
+            status.HTTP_200_OK,
+        )
+
+    def test_comment_create(self):
+        data = {"content": "Created comment"}
+
+        self._request_department(
+            self.client.post,
+            reverse("comment-list", kwargs={"slug": self.post.slug}),
+            status.HTTP_401_UNAUTHORIZED,
+            data=data,
+        )
+
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self._request_department(
+            self.client.post,
+            reverse("comment-list", kwargs={"slug": self.post.slug}),
+            status.HTTP_201_CREATED,
+            data=data,
+        )
+        self.assertEqual(self.post.comments.count(), 2)
+
+    def test_comment_retrieve(self):
+        self._request_department(
+            self.client.get,
+            reverse(
+                "comment-details",
+                kwargs={"slug": self.post.slug, "pk": self.comment.pk},
+            ),
+            status.HTTP_200_OK,
+        )
+
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self._request_department(
+            self.client.get,
+            reverse(
+                "comment-details",
+                kwargs={"slug": self.post.slug, "pk": self.comment.pk},
+            ),
+            status.HTTP_200_OK,
+        )
+
+    def test_comment_update(self):
+        data = {"content": "Updated comment"}
+
+        self._request_department(
+            self.client.put,
+            reverse(
+                "comment-details",
+                kwargs={"slug": self.post.slug, "pk": self.comment.pk},
+            ),
+            status.HTTP_401_UNAUTHORIZED,
+            data=data,
+        )
+
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self._request_department(
+            self.client.put,
+            reverse(
+                "comment-details",
+                kwargs={"slug": self.post.slug, "pk": self.comment.pk},
+            ),
+            status.HTTP_403_FORBIDDEN,
+            data=data,
+        )
+
+        token = Token.objects.get(user__username=self.author)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self._request_department(
+            self.client.put,
+            reverse(
+                "comment-details",
+                kwargs={"slug": self.post.slug, "pk": self.comment.pk},
+            ),
+            status.HTTP_200_OK,
+            data=data,
+        )
+        self.assertEqual(
+            Comment.objects.get(pk=self.comment.pk).content, "Updated comment"
+        )
+
+    def test_comment_delete(self):
+        self._request_department(
+            self.client.delete,
+            reverse(
+                "comment-details",
+                kwargs={"slug": self.post.slug, "pk": self.comment.pk},
+            ),
+            status.HTTP_401_UNAUTHORIZED,
+        )
+
+        token = Token.objects.get(user__username=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self._request_department(
+            self.client.delete,
+            reverse(
+                "comment-details",
+                kwargs={"slug": self.post.slug, "pk": self.comment.pk},
+            ),
+            status.HTTP_403_FORBIDDEN,
+        )
+
+        token = Token.objects.get(user__username=self.author)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self._request_department(
+            self.client.delete,
+            reverse(
+                "comment-details",
+                kwargs={"slug": self.post.slug, "pk": self.comment.pk},
+            ),
+            status.HTTP_204_NO_CONTENT,
+        )
+        self.assertEqual(Comment.objects.all().count(), 0)
 
     def _request_department(self, method, path, status_code, data: dict = None) -> None:
         response = method(path, data, format="json")
